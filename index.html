@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DompetAI - Asisten E-Wallet Pintar</title>
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation / Wallet Overview -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div>
+                    <h2>DompetAI</h2>
+                    <span class="badge">E-Wallet Assistant</span>
+                </div>
+                <button class="theme-toggle" id="themeToggle" title="Ganti Tema">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+
+            <!-- Widget Profil Pengguna di Pojok Kiri Atas -->
+            <div class="user-profile-top-left" onclick="openProfileModal()" title="Klik untuk Edit Profil">
+                <div class="top-profile-avatar" id="topProfileAvatarBox">
+                    <i class="fa-solid fa-user" id="topProfileAvatarIcon"></i>
+                </div>
+                <div class="top-profile-info">
+                    <span class="top-profile-name" id="sidebarUserName">Galang</span>
+                    <small class="top-profile-status"><i class="fa-solid fa-circle-check"></i> Verified Member</small>
+                </div>
+                <i class="fa-solid fa-pen-to-square edit-icon"></i>
+            </div>
+
+            <!-- Virtual Card -->
+            <div class="card-container">
+                <div class="virtual-card">
+                    <div class="card-top">
+                        <span class="card-type">PREMIUM ACCOUNT</span>
+                        <i class="fa-brands fa-cc-visa card-chip"></i>
+                    </div>
+                    <div class="card-balance">
+                        <small>Total Saldo Utama</small>
+                        <h3 id="balanceDisplay">Rp 0</h3>
+                    </div>
+                    <div class="card-bottom">
+                        <div class="holder">
+                            <small>Pemilik Akun</small>
+                            <p id="userName">Galang</p>
+                        </div>
+                        <div class="number">
+                            <small>Nomor Virtual</small>
+                            <p id="cardVirtualNum">•••• 8829</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="quick-actions">
+                <button class="action-btn" onclick="quickFillInput('Top up Rp 100.000 via BCA')">
+                    <div class="icon-box green"><i class="fa-solid fa-plus"></i></div>
+                    <span>Top Up</span>
+                </button>
+                <button class="action-btn" onclick="quickFillInput('Transfer Rp 50.000 ke Budi')">
+                    <div class="icon-box blue"><i class="fa-solid fa-paper-plane"></i></div>
+                    <span>Transfer</span>
+                </button>
+                <button class="action-btn" onclick="quickFillInput('Bayar tagihan listrik Rp 150.000')">
+                    <div class="icon-box orange"><i class="fa-solid fa-bolt"></i></div>
+                    <span>Tagihan</span>
+                </button>
+                <button class="action-btn" onclick="openDashboard()">
+                    <div class="icon-box purple"><i class="fa-solid fa-chart-pie"></i></div>
+                    <span>Dashboard</span>
+                </button>
+            </div>
+
+            <!-- Recent Activity List -->
+            <div class="history-section">
+                <div class="history-header">
+                    <h4><i class="fa-solid fa-list-check"></i> Transaksi Terakhir</h4>
+                    <span id="txCount" class="tx-badge">0</span>
+                </div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <!-- Chat Header -->
+            <header class="chat-header">
+                <div class="bot-info">
+                    <div class="avatar">
+                        <i class="fa-solid fa-robot"></i>
+                        <span class="online-indicator"></span>
+                    </div>
+                    <div>
+                        <h3>Asisten Keuangan Bot</h3>
+                        <p class="status">Terhubung ke Supabase Cloud Database</p>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="openProfileModal()" title="Custom Profil">
+                        <i class="fa-solid fa-user-pen"></i>
+                    </button>
+                    <button class="icon-btn" onclick="openDashboard()" title="Buka Dashboard Laporan">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </button>
+                    <button class="icon-btn" onclick="clearAllData()" title="Hapus Semua Data">
+                        <i class="fa-solid fa-trash-can" style="color: var(--accent-red);"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Scroll Area -->
+            <section class="chat-messages" id="chatMessages"></section>
+
+            <!-- Quick Prompt Suggestions -->
+            <div class="suggestions-container">
+                <small><i class="fa-solid fa-wand-magic-sparkles"></i> Rekomendasi Perintah:</small>
+                <div class="chips-wrapper">
+                    <button class="chip" onclick="quickSendMessage('Berapa sisa saldo saya?')">💰 Cek Saldo</button>
+                    <button class="chip" onclick="quickSendMessage('Ngutangi dava 5000')">💸 Ngutangi Dava</button>
+                    <button class="chip" onclick="quickSendMessage('Beli kopi 10k')">☕ Beli Kopi</button>
+                    <button class="chip" onclick="quickSendMessage('Buka dashboard laporan')">📊 Dashboard</button>
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <div class="chat-input-area">
+                <form id="chatForm" onsubmit="handleFormSubmit(event)">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Ketik bahasa bebas... (contoh: Ngutangi dava 5000)" 
+                            autocomplete="off"
+                        >
+                        <button type="submit" id="sendBtn" class="send-btn">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Custom Profil & Upload Foto dari Perangkat -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal-card profile-card">
+            <div class="profile-header-bg">
+                <button class="icon-btn close-modal-btn" onclick="closeProfileModal()"><i class="fa-solid fa-xmark"></i></button>
+                <div class="profile-avatar-large" id="modalAvatarPreviewBox">
+                    <i class="fa-solid fa-user" id="modalAvatarIcon"></i>
+                </div>
+            </div>
+            <div class="profile-body">
+                <h3>Custom Profil & Foto</h3>
+                <p class="profile-subtitle">Upload foto dari galeri & atur identitas Anda</p>
+                
+                <form id="profileForm" onsubmit="saveProfileData(event)" class="profile-form">
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-camera"></i> Pilih Foto dari Perangkat</label>
+                        <input type="file" id="inputFileUpload" accept="image/*" class="file-input-custom">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-user"></i> Nama Pemilik Akun</label>
+                        <input type="text" id="inputProfileName" placeholder="Masukkan nama Anda" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-credit-card"></i> Nomor Virtual Account</label>
+                        <input type="text" id="inputProfileVA" placeholder="Contoh: 8829-1029-4820" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-lock"></i> PIN Keamanan (6 Digit)</label>
+                        <input type="password" id="inputProfilePin" maxlength="6" placeholder="******" required>
+                    </div>
+
+                    <div class="modal-actions" style="margin-top: 1.2rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeProfileModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Simpan Profil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Verification Modal -->
+    <div class="modal-overlay" id="pinModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i class="fa-solid fa-shield-halved modal-icon"></i>
+                <h3>Konfirmasi Transaksi</h3>
+                <p id="modalTxDetail">Verifikasi PIN keamanan Anda untuk melanjutkan.</p>
+            </div>
+            <div class="pin-inputs">
+                <input type="password" maxlength="1" class="pin-digit" autofocus>
+                <input type="password" maxlength="1" class="pin-digit">
+                <input type="password" maxlength="1" class="pin-digit">
+                <input type="password" maxlength="1" class="pin-digit">
+                <input type="password" maxlength="1" class="pin-digit">
+                <input type="password" maxlength="1" class="pin-digit">
+            </div>
+            <small class="pin-hint">PIN Default Demo: <b>123456</b></small>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closePinModal(true)">Batal</button>
+                <button type="button" class="btn btn-primary" onclick="submitPin()">Konfirmasi PIN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Modal -->
+    <div class="modal-overlay" id="dashboardModal">
+        <div class="modal-card dashboard-card">
+            <div class="modal-header-custom">
+                <div>
+                    <h3><i class="fa-solid fa-chart-pie"></i> Dashboard & Catatan Keuangan</h3>
+                    <p>Terhubung ke Database Cloud Supabase</p>
+                </div>
+                <button class="icon-btn" onclick="closeDashboardModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="dash-stats">
+                <div class="dash-stat-box in">
+                    <small>Total Pemasukan</small>
+                    <h4 id="dashTotalIn">Rp 0</h4>
+                </div>
+                <div class="dash-stat-box out">
+                    <small>Total Pengeluaran</small>
+                    <h4 id="dashTotalOut">Rp 0</h4>
+                </div>
+            </div>
+
+            <div class="dash-history-container">
+                <h4>Semua Riwayat Transaksi (<span id="dashTxCount">0</span>)</h4>
+                <div class="dash-history-list" id="dashHistoryList"></div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <button type="button" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-red);" onclick="clearAllData()">Hapus Semua Data</button>
+                <button type="button" class="btn btn-primary" onclick="closeDashboardModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
