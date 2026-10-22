@@ -12,7 +12,8 @@ let state = {
     userPin: '123456',
     avatarUrl: '',
     transactions: [],
-    pendingTransaction: null
+    pendingTransaction: null,
+    tempNewAvatar: ''
 };
 
 // DOM Elements
@@ -31,49 +32,59 @@ const authScreen = document.getElementById('authScreen');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+    // Cek Session LocalStorage
     const savedUser = localStorage.getItem('dompetai_user');
     if (savedUser) {
         state.currentUser = JSON.parse(savedUser);
-        authScreen.classList.add('hidden');
+        if (authScreen) authScreen.classList.add('hidden');
         await fetchAppDataFromSupabase();
     }
 
     setupPinInputs();
 
+    // Otomatis Kompres Foto saat dipilih dari Galeri / Penyimpanan Internal
     const fileInput = document.getElementById('inputFileUpload');
     if (fileInput) {
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 compressAndResizeImage(file, 300, 300, 0.7, function(compressedBase64) {
-                    document.getElementById('modalAvatarPreviewBox').innerHTML = `<img src="${compressedBase64}" alt="Preview">`;
+                    const previewBox = document.getElementById('modalAvatarPreviewBox');
+                    if (previewBox) {
+                        previewBox.innerHTML = `<img src="${compressedBase64}" alt="Preview">`;
+                    }
                     state.tempNewAvatar = compressedBase64;
                 });
             }
         });
     }
 
-    themeToggle.addEventListener('click', () => {
-        const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
-        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', nextTheme);
-        themeToggle.querySelector('i').className = nextTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-    });
+    // Theme Switcher
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', nextTheme);
+            themeToggle.querySelector('i').className = nextTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        });
+    }
 });
 
+// SWITCH FORM LOGIN & REGISTER
 function toggleAuthMode(mode) {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     if (mode === 'register') {
-        loginForm.classList.add('hidden');
-        registerForm.classList.remove('hidden');
+        if (loginForm) loginForm.classList.add('hidden');
+        if (registerForm) registerForm.classList.remove('hidden');
     } else {
-        registerForm.classList.add('hidden');
-        loginForm.classList.remove('hidden');
+        if (registerForm) registerForm.classList.add('hidden');
+        if (loginForm) loginForm.classList.remove('hidden');
     }
 }
 
+// LOGIKA REGISTER AKUN BARU
 async function handleRegister(e) {
     e.preventDefault();
     const fullName = document.getElementById('regFullName').value.trim();
@@ -83,17 +94,19 @@ async function handleRegister(e) {
     if (!fullName || !username || !password) return;
 
     try {
+        // Cek ketersediaan username
         let { data: existingUser } = await supabaseClient
             .from('wallet_users')
             .select('*')
             .eq('username', username)
-            .single();
+            .maybeSingle();
 
         if (existingUser) {
-            alert('Username sudah terpakai!');
+            alert('Username sudah terpakai, silakan gunakan username lain!');
             return;
         }
 
+        // Buat akun baru di wallet_users
         let { data: newUser, error: errUser } = await supabaseClient
             .from('wallet_users')
             .insert([{ username, password }])
@@ -102,16 +115,15 @@ async function handleRegister(e) {
 
         if (errUser) throw errUser;
 
+        // Simpan session user
         state.currentUser = newUser;
         localStorage.setItem('dompetai_user', JSON.stringify(newUser));
 
-        await supabaseClient.from('wallet_profile').update({
-            user_name: fullName,
-            user_id: newUser.id
-        }).eq('id', 1);
-
-        authScreen.classList.add('hidden');
+        if (authScreen) authScreen.classList.add('hidden');
         await fetchAppDataFromSupabase();
+
+        // Update nama awal profil
+        await saveProfileDataDirect(fullName, '8829-1029-' + Math.floor(1000 + Math.random() * 9000), '123456', '');
 
         appendAndSaveBotMessage(`Selamat datang <b>${fullName}</b>! 👋 Akun Anda berhasil dibuat.`);
     } catch (err) {
@@ -119,6 +131,7 @@ async function handleRegister(e) {
     }
 }
 
+// LOGIKA LOGIN
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
@@ -130,7 +143,7 @@ async function handleLogin(e) {
             .select('*')
             .eq('username', username)
             .eq('password', password)
-            .single();
+            .maybeSingle();
 
         if (error || !user) {
             alert('Username atau Password salah!');
@@ -140,7 +153,7 @@ async function handleLogin(e) {
         state.currentUser = user;
         localStorage.setItem('dompetai_user', JSON.stringify(user));
 
-        authScreen.classList.add('hidden');
+        if (authScreen) authScreen.classList.add('hidden');
         chatMessages.innerHTML = '';
         await fetchAppDataFromSupabase();
     } catch (err) {
@@ -148,14 +161,16 @@ async function handleLogin(e) {
     }
 }
 
+// LOGOUT AKUN
 function handleLogout() {
-    if (confirm('Apakah Anda yakin ingin keluar?')) {
+    if (confirm('Apakah Anda yakin ingin keluar dari akun?')) {
         localStorage.removeItem('dompetai_user');
         state.currentUser = null;
         location.reload();
     }
 }
 
+// FORMAT TANGGAL CANTIK
 function formatFormattedDate(dateObj = new Date()) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}, ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
@@ -165,6 +180,7 @@ function toDatetimeLocalString(dateObj = new Date()) {
     return `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')}T${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
 }
 
+// FUNGSI KOMPRESI FOTO
 function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -188,26 +204,68 @@ function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     reader.readAsDataURL(file);
 }
 
-// AMBIL DATA & RIWAYAT CHAT DARI SUPABASE
+// FETCH DATA TERPISAH PER USER
 async function fetchAppDataFromSupabase() {
+    if (!state.currentUser) return;
+    const currentUserId = state.currentUser.id;
+
     try {
-        let { data: profile } = await supabaseClient.from('wallet_profile').select('*').eq('id', 1).single();
+        // 1. Ambil Profil User
+        let { data: profile } = await supabaseClient
+            .from('wallet_profile')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+
         if (profile) {
             state.balance = parseFloat(profile.balance);
-            state.userName = profile.user_name || 'Galang';
+            state.userName = profile.user_name || state.currentUser.username;
             state.userPin = profile.user_pin || '123456';
             state.userVa = profile.virtual_account || '•••• 8829';
             state.avatarUrl = profile.avatar_url || '';
             state.tempNewAvatar = state.avatarUrl;
-            updateProfileUI();
-        }
+        } else {
+            // Jika akun baru, buat entry profil default khusus user_id ini
+            let { data: newProf } = await supabaseClient
+                .from('wallet_profile')
+                .insert([{
+                    user_id: currentUserId,
+                    balance: 0,
+                    user_name: state.currentUser.username,
+                    user_pin: '123456',
+                    virtual_account: '8829-1029-' + Math.floor(1000 + Math.random() * 9000)
+                }])
+                .select()
+                .single();
 
-        let { data: txs } = await supabaseClient.from('transactions').select('*').order('id', { ascending: true });
-        if (txs) state.transactions = txs;
+            if (newProf) {
+                state.balance = 0;
+                state.userName = newProf.user_name;
+                state.userPin = newProf.user_pin;
+                state.userVa = newProf.virtual_account;
+                state.avatarUrl = '';
+                state.tempNewAvatar = '';
+            }
+        }
+        updateProfileUI();
+
+        // 2. Ambil Transaksi User
+        let { data: txs } = await supabaseClient
+            .from('transactions')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .order('id', { ascending: true });
+
+        state.transactions = txs || [];
         updateUI();
 
-        // Muat Riwayat Chat dari Supabase
-        let { data: chats } = await supabaseClient.from('chat_history').select('*').order('id', { ascending: true });
+        // 3. Ambil Chat User
+        let { data: chats } = await supabaseClient
+            .from('chat_history')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .order('id', { ascending: true });
+
         chatMessages.innerHTML = '';
         if (chats && chats.length > 0) {
             chats.forEach(c => {
@@ -226,20 +284,26 @@ async function fetchAppDataFromSupabase() {
 }
 
 function updateProfileUI() {
-    document.getElementById('userName').textContent = state.userName;
-    document.getElementById('sidebarUserName').textContent = state.userName;
-    document.getElementById('cardVirtualNum').textContent = state.userVa;
-    document.getElementById('inputProfileName').value = state.userName;
-    document.getElementById('inputProfileVA').value = state.userVa;
-    document.getElementById('inputProfilePin').value = state.userPin;
+    if (document.getElementById('userName')) document.getElementById('userName').textContent = state.userName;
+    if (document.getElementById('sidebarUserName')) document.getElementById('sidebarUserName').textContent = state.userName;
+    if (document.getElementById('cardVirtualNum')) document.getElementById('cardVirtualNum').textContent = state.userVa;
+
+    if (document.getElementById('inputProfileName')) document.getElementById('inputProfileName').value = state.userName;
+    if (document.getElementById('inputProfileVA')) document.getElementById('inputProfileVA').value = state.userVa;
+    if (document.getElementById('inputProfilePin')) document.getElementById('inputProfilePin').value = state.userPin;
 
     const topAvatarBox = document.getElementById('topProfileAvatarBox');
-    topAvatarBox.innerHTML = state.avatarUrl ? `<img src="${state.avatarUrl}" alt="Avatar">` : `<i class="fa-solid fa-user"></i>`;
+    if (topAvatarBox) {
+        topAvatarBox.innerHTML = state.avatarUrl ? `<img src="${state.avatarUrl}" alt="Avatar">` : `<i class="fa-solid fa-user"></i>`;
+    }
 
     const modalAvatarBox = document.getElementById('modalAvatarPreviewBox');
-    modalAvatarBox.innerHTML = state.avatarUrl ? `<img src="${state.avatarUrl}" alt="Avatar Large">` : `<i class="fa-solid fa-user"></i>`;
+    if (modalAvatarBox) {
+        modalAvatarBox.innerHTML = state.avatarUrl ? `<img src="${state.avatarUrl}" alt="Avatar Large">` : `<i class="fa-solid fa-user"></i>`;
+    }
 }
 
+// SIMPAN PROFIL KUSTOM
 async function saveProfileData(e) {
     e.preventDefault();
     const newName = document.getElementById('inputProfileName').value.trim();
@@ -249,23 +313,35 @@ async function saveProfileData(e) {
 
     if (!newName || !newVA || !newPin) return alert("Harap isi semua kolom!");
 
+    await saveProfileDataDirect(newName, newVA, newPin, finalAvatar);
+    closeProfileModal();
+    appendAndSaveBotMessage(`👤 <b>Profil & Foto Berhasil Diperbarui!</b>`);
+}
+
+async function saveProfileDataDirect(newName, newVA, newPin, finalAvatar) {
+    if (!state.currentUser) return;
     try {
         await supabaseClient.from('wallet_profile').update({
-            user_name: newName, virtual_account: newVA, user_pin: newPin, avatar_url: finalAvatar
-        }).eq('id', 1);
+            user_name: newName,
+            virtual_account: newVA,
+            user_pin: newPin,
+            avatar_url: finalAvatar
+        }).eq('user_id', state.currentUser.id);
 
-        state.userName = newName; state.userVa = newVA; state.userPin = newPin; state.avatarUrl = finalAvatar;
+        state.userName = newName;
+        state.userVa = newVA;
+        state.userPin = newPin;
+        state.avatarUrl = finalAvatar;
         updateProfileUI();
-        closeProfileModal();
-        appendAndSaveBotMessage(`👤 <b>Profil & Foto Berhasil Diperbarui!</b>`);
     } catch (err) {
-        console.error(err);
+        console.error("Gagal menyimpan profil:", err);
     }
 }
 
 function openProfileModal() {
     state.tempNewAvatar = state.avatarUrl;
-    document.getElementById('inputFileUpload').value = '';
+    const fileInp = document.getElementById('inputFileUpload');
+    if (fileInp) fileInp.value = '';
     updateProfileUI();
     profileModal.classList.add('active');
 }
@@ -273,18 +349,21 @@ function openProfileModal() {
 function closeProfileModal() { profileModal.classList.remove('active'); }
 
 async function clearAllData() {
-    if (!confirm("⚠️ Hapus seluruh data transaksi & riwayat chat?")) return;
+    if (!confirm("⚠️ Apakah Anda yakin ingin menghapus seluruh transaksi & riwayat chat Anda?")) return;
+    if (!state.currentUser) return;
+
+    const currentUserId = state.currentUser.id;
     try {
-        await supabaseClient.from('transactions').delete().neq('id', 0);
-        await supabaseClient.from('chat_history').delete().neq('id', 0);
-        await supabaseClient.from('wallet_profile').update({ balance: 0 }).eq('id', 1);
+        await supabaseClient.from('transactions').delete().eq('user_id', currentUserId);
+        await supabaseClient.from('chat_history').delete().eq('user_id', currentUserId);
+        await supabaseClient.from('wallet_profile').update({ balance: 0 }).eq('user_id', currentUserId);
 
         state.balance = 0;
         state.transactions = [];
         updateUI();
         closeDashboardModal();
         chatMessages.innerHTML = '';
-        appendAndSaveBotMessage(`🗑️ <b>Semua data dan riwayat chat berhasil dihapus!</b>`);
+        appendAndSaveBotMessage(`🗑️ <b>Semua data dan riwayat chat Anda telah dibersihkan!</b>`);
     } catch (err) {
         console.error(err);
     }
@@ -293,27 +372,29 @@ async function clearAllData() {
 function formatRupiah(amount) { return 'Rp ' + amount.toLocaleString('id-ID'); }
 
 function updateUI() {
-    balanceDisplay.textContent = formatRupiah(state.balance);
-    txCount.textContent = state.transactions.length;
+    if (balanceDisplay) balanceDisplay.textContent = formatRupiah(state.balance);
+    if (txCount) txCount.textContent = state.transactions.length;
 
-    historyList.innerHTML = '';
-    state.transactions.slice().reverse().forEach(tx => {
-        const item = document.createElement('div');
-        item.className = 'tx-item';
-        item.innerHTML = `
-            <div class="tx-info">
-                <div class="tx-icon" style="background: ${tx.is_plus ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${tx.is_plus ? '#10b981' : '#ef4444'}">
-                    <i class="fa-solid ${tx.is_plus ? 'fa-arrow-down-left' : 'fa-arrow-up-right'}"></i>
+    if (historyList) {
+        historyList.innerHTML = '';
+        state.transactions.slice().reverse().forEach(tx => {
+            const item = document.createElement('div');
+            item.className = 'tx-item';
+            item.innerHTML = `
+                <div class="tx-info">
+                    <div class="tx-icon" style="background: ${tx.is_plus ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${tx.is_plus ? '#10b981' : '#ef4444'}">
+                        <i class="fa-solid ${tx.is_plus ? 'fa-arrow-down-left' : 'fa-arrow-up-right'}"></i>
+                    </div>
+                    <div>
+                        <strong style="display:block; font-size: 0.8rem;">${tx.title}</strong>
+                        <small style="color: var(--text-muted); font-size: 0.68rem;"><i class="fa-regular fa-clock"></i> ${tx.date}</small>
+                    </div>
                 </div>
-                <div>
-                    <strong style="display:block; font-size: 0.8rem;">${tx.title}</strong>
-                    <small style="color: var(--text-muted); font-size: 0.68rem;"><i class="fa-regular fa-clock"></i> ${tx.date}</small>
-                </div>
-            </div>
-            <div class="tx-amount ${tx.is_plus ? 'plus' : 'minus'}">${tx.is_plus ? '+' : '-'}${formatRupiah(tx.amount)}</div>
-        `;
-        historyList.appendChild(item);
-    });
+                <div class="tx-amount ${tx.is_plus ? 'plus' : 'minus'}">${tx.is_plus ? '+' : '-'}${formatRupiah(tx.amount)}</div>
+            `;
+            historyList.appendChild(item);
+        });
+    }
 }
 
 function handleFormSubmit(e) {
@@ -334,15 +415,27 @@ function handleFormSubmit(e) {
 function quickFillInput(text) { userInput.value = text; userInput.focus(); }
 function quickSendMessage(text) { userInput.value = text; handleFormSubmit(new Event('submit')); }
 
-// SIMPAN CHAT KE SUPABASE
+// SIMPAN CHAT KE SUPABASE PER USER
 async function appendAndSaveUserMessage(text) {
     appendUserMessageUI(text);
-    await supabaseClient.from('chat_history').insert([{ sender: 'user', message: text }]);
+    if (state.currentUser) {
+        await supabaseClient.from('chat_history').insert([{
+            user_id: state.currentUser.id,
+            sender: 'user',
+            message: text
+        }]);
+    }
 }
 
 async function appendAndSaveBotMessage(htmlContent) {
     appendBotMessageUI(htmlContent);
-    await supabaseClient.from('chat_history').insert([{ sender: 'bot', message: htmlContent }]);
+    if (state.currentUser) {
+        await supabaseClient.from('chat_history').insert([{
+            user_id: state.currentUser.id,
+            sender: 'bot',
+            message: htmlContent
+        }]);
+    }
 }
 
 function appendUserMessageUI(text) {
@@ -486,7 +579,7 @@ function submitPin() {
 
 async function executePendingTransaction() {
     const tx = state.pendingTransaction;
-    if (!tx) return;
+    if (!tx || !state.currentUser) return;
 
     let newBalance = tx.is_plus ? state.balance + tx.amount : state.balance - tx.amount;
     let finalDateStr = formatFormattedDate();
@@ -496,10 +589,17 @@ async function executePendingTransaction() {
 
     try {
         let { data, error: errTx } = await supabaseClient.from('transactions').insert([{
-            type: tx.type, title: tx.title, amount: tx.amount, date: finalDateStr, is_plus: tx.is_plus
+            user_id: state.currentUser.id,
+            type: tx.type,
+            title: tx.title,
+            amount: tx.amount,
+            date: finalDateStr,
+            is_plus: tx.is_plus
         }]).select();
 
-        let { error: errProf } = await supabaseClient.from('wallet_profile').update({ balance: newBalance }).eq('id', 1);
+        let { error: errProf } = await supabaseClient.from('wallet_profile')
+            .update({ balance: newBalance })
+            .eq('user_id', state.currentUser.id);
 
         if (errTx || errProf) {
             alert("Gagal menyimpan transaksi!");
