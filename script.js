@@ -1,6 +1,6 @@
 // Konfigurasi Koneksi Supabase
 const SUPABASE_URL = 'https://pmtjequlrdxpjaeeswhd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MzE1MTYsImV4cCI6MjEwODEwNzUxNn0.Xm9hlw-iWtvho3uHavQ4A3I53hivewoYHaPJB6oYEws';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MzE1MTYsImV4cCI6MjEwODEwNzUxNn0.Xm9hlw-iWtvho3uHavQ4A3I53hivewoYHaPJB6oYEws';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // State Aplikasi
@@ -250,7 +250,8 @@ async function fetchAppDataFromSupabase() {
                     balance: 0,
                     user_name: state.currentUser.username,
                     user_pin: '123456',
-                    virtual_account: '8829-1029-' + Math.floor(1000 + Math.random() * 9000)
+                    virtual_account: '8829-1029-' + Math.floor(1000 + Math.random() * 9000),
+                    avatar_url: ''
                 }])
                 .select()
                 .single();
@@ -325,7 +326,7 @@ function updateProfileUI() {
     }
 }
 
-// SIMPAN EDIT PROFIL, USERNAME & PASSWORD
+// SIMPAN EDIT PROFIL, USERNAME & PASSWORD (DIPERBAIKI)
 async function saveProfileData(e) {
     e.preventDefault();
     const newName = document.getElementById('inputProfileName').value.trim();
@@ -333,12 +334,12 @@ async function saveProfileData(e) {
     const newPin = document.getElementById('inputProfilePin').value.trim();
     const newUsername = document.getElementById('inputProfileUsername').value.trim().toLowerCase();
     const newPassword = document.getElementById('inputProfilePassword').value.trim();
-    const finalAvatar = state.tempNewAvatar || state.avatarUrl;
+    const finalAvatar = state.tempNewAvatar !== undefined && state.tempNewAvatar !== '' ? state.tempNewAvatar : state.avatarUrl;
 
     if (!newName || !newVA || !newPin || !newUsername) return alert("Harap isi semua kolom wajib!");
 
     try {
-        if (newUsername !== state.currentUser.username) {
+        if (state.currentUser && newUsername !== state.currentUser.username) {
             let { data: existingUser } = await supabaseClient
                 .from('wallet_users')
                 .select('*')
@@ -355,39 +356,78 @@ async function saveProfileData(e) {
             state.currentUser.username = newUsername;
         }
 
-        if (newPassword) {
+        if (newPassword && state.currentUser) {
             await supabaseClient.from('wallet_users').update({ password: newPassword }).eq('id', state.currentUser.id);
             state.currentUser.password = newPassword;
         }
 
-        localStorage.setItem('dompetai_user', JSON.stringify(state.currentUser));
+        if (state.currentUser) {
+            localStorage.setItem('dompetai_user', JSON.stringify(state.currentUser));
+        }
 
-        await saveProfileDataDirect(newName, newVA, newPin, finalAvatar);
+        const isSuccess = await saveProfileDataDirect(newName, newVA, newPin, finalAvatar);
 
-        closeProfileModal();
-        appendAndSaveBotMessage(`👤 <b>Profil, Username & Keamanan Akun Berhasil Diperbarui!</b>`);
+        if (isSuccess) {
+            closeProfileModal();
+            appendAndSaveBotMessage(`👤 <b>Profil, Username & Keamanan Akun Berhasil Diperbarui!</b>`);
+        }
     } catch (err) {
         alert("Gagal memperbarui profil/akun: " + err.message);
     }
 }
 
 async function saveProfileDataDirect(newName, newVA, newPin, finalAvatar) {
-    if (!state.currentUser) return;
+    if (!state.currentUser) return false;
+    const currentUserId = state.currentUser.id;
+
     try {
-        await supabaseClient.from('wallet_profile').update({
-            user_name: newName,
-            virtual_account: newVA,
-            user_pin: newPin,
-            avatar_url: finalAvatar
-        }).eq('user_id', state.currentUser.id);
+        let { data: existingProf } = await supabaseClient
+            .from('wallet_profile')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+
+        let error = null;
+
+        if (existingProf) {
+            const res = await supabaseClient
+                .from('wallet_profile')
+                .update({
+                    user_name: newName,
+                    virtual_account: newVA,
+                    user_pin: newPin,
+                    avatar_url: finalAvatar
+                })
+                .eq('user_id', currentUserId);
+            error = res.error;
+        } else {
+            const res = await supabaseClient
+                .from('wallet_profile')
+                .insert([{
+                    user_id: currentUserId,
+                    balance: state.balance || 0,
+                    user_name: newName,
+                    virtual_account: newVA,
+                    user_pin: newPin,
+                    avatar_url: finalAvatar
+                }]);
+            error = res.error;
+        }
+
+        if (error) throw error;
 
         state.userName = newName;
         state.userVa = newVA;
         state.userPin = newPin;
         state.avatarUrl = finalAvatar;
+        state.tempNewAvatar = finalAvatar;
+        
         updateProfileUI();
+        return true;
     } catch (err) {
-        console.error("Gagal menyimpan profil:", err);
+        console.error("Gagal menyimpan profil ke Supabase:", err);
+        alert("Gagal menyimpan ke database: " + err.message);
+        return false;
     }
 }
 
