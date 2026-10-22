@@ -206,7 +206,7 @@
         </main>
     </div>
 
-    <!-- Modal Custom Profil & Pengaturan Akun -->
+    <!-- MODAL CUSTOM PROFIL, KEAMANAN & PENGATURAN AKUN -->
     <div class="modal-overlay" id="profileModal">
         <div class="modal-card profile-card" style="max-width: 440px !important;">
             <div class="profile-header-bg">
@@ -215,7 +215,7 @@
                     <i class="fa-solid fa-user" id="modalAvatarIcon"></i>
                 </div>
             </div>
-            <div class="profile-body" style="padding-top: 2.2rem;">
+            <div class="profile-body" style="padding-top: 2.2rem; max-height: 80vh; overflow-y: auto;">
                 <h3>Pengaturan Profil & Akun</h3>
                 <p class="profile-subtitle">Atur identitas e-wallet & keamanan login Anda</p>
                 
@@ -242,6 +242,7 @@
 
                     <hr style="border: none; border-top: 1px solid var(--border-color); margin: 0.5rem 0;">
 
+                    <!-- KONTROL FITUR UBAH USERNAME & PASSWORD -->
                     <div class="form-group">
                         <label><i class="fa-solid fa-user-gear"></i> Username Login</label>
                         <input type="text" id="inputProfileUsername" placeholder="Username baru" required autocomplete="off">
@@ -258,6 +259,7 @@
                     </div>
                 </form>
 
+                <!-- KONTROL FITUR HAPUS AKUN -->
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed rgba(239, 68, 68, 0.3);">
                     <button type="button" class="btn" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-red); width: 100%; font-size: 0.82rem;" onclick="handleDeleteAccount()">
                         <i class="fa-solid fa-user-slash"></i> Hapus Akun & Seluruh Data Permanen
