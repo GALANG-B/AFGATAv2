@@ -15,8 +15,56 @@
 </head>
 <body>
 
+    <!-- HALAMAN LOGIN & REGISTER -->
+    <div class="auth-overlay active" id="authScreen">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <div class="logo">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h2>DompetAI</h2>
+                <p>Asisten E-Wallet Pintar & Catatan Keuangan</p>
+            </div>
+
+            <!-- Form Login -->
+            <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+                <h3>Masuk Akun</h3>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="loginUsername" placeholder="Masukkan username" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-key"></i> Password</label>
+                    <input type="password" id="loginPassword" placeholder="Masukkan password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-right-to-bracket"></i> Masuk</button>
+                <p class="auth-switch">Belum punya akun? <a href="#" onclick="toggleAuthMode('register')">Daftar Sekarang</a></p>
+            </form>
+
+            <!-- Form Register -->
+            <form id="registerForm" class="auth-form hidden" onsubmit="handleRegister(event)">
+                <h3>Daftar Akun Baru</h3>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-id-card"></i> Nama Lengkap</label>
+                    <input type="text" id="regFullName" placeholder="Contoh: Galang" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="regUsername" placeholder="Buat username" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-key"></i> Password</label>
+                    <input type="password" id="regPassword" placeholder="Buat password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-user-plus"></i> Buat Akun</button>
+                <p class="auth-switch">Sudah punya akun? <a href="#" onclick="toggleAuthMode('login')">Login di sini</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTAINER UTAMA APLIKASI (Hidden Sampai Login) -->
     <div class="app-container">
-        <!-- Sidebar Navigation / Wallet Overview -->
+        <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand">
                 <div class="logo">
@@ -31,7 +79,7 @@
                 </button>
             </div>
 
-            <!-- Widget Profil Pengguna di Pojok Kiri Atas -->
+            <!-- Widget Profil Pengguna -->
             <div class="user-profile-top-left" onclick="openProfileModal()" title="Klik untuk Edit Profil">
                 <div class="top-profile-avatar" id="topProfileAvatarBox">
                     <i class="fa-solid fa-user" id="topProfileAvatarIcon"></i>
@@ -119,8 +167,8 @@
                     <button class="icon-btn" onclick="openDashboard()" title="Buka Dashboard Laporan">
                         <i class="fa-solid fa-chart-pie"></i>
                     </button>
-                    <button class="icon-btn" onclick="clearAllData()" title="Hapus Semua Data">
-                        <i class="fa-solid fa-trash-can" style="color: var(--accent-red);"></i>
+                    <button class="icon-btn" onclick="handleLogout()" title="Keluar / Logout" style="color: var(--accent-red);">
+                        <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
             </header>
@@ -201,7 +249,7 @@
         </div>
     </div>
 
-    <!-- PIN Verification Modal (Ada Pilihan Set Tanggal Transaksi) -->
+    <!-- PIN Verification Modal -->
     <div class="modal-overlay" id="pinModal">
         <div class="modal-card">
             <div class="modal-header">
