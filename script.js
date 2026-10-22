@@ -32,6 +32,9 @@ const authScreen = document.getElementById('authScreen');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+    // Jalankan Jam & Tanggal Realtime
+    initRealtimeClock();
+
     const savedUser = localStorage.getItem('dompetai_user');
     if (savedUser) {
         state.currentUser = JSON.parse(savedUser);
@@ -68,6 +71,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// FUNGSI JAM & TANGGAL REALTIME (DIPERBARUI SETIAP DETIK)
+function initRealtimeClock() {
+    function updateClock() {
+        const clockElem = document.getElementById('realtimeClock');
+        if (!clockElem) return;
+
+        const now = new Date();
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+        const dayName = days[now.getDay()];
+        const date = now.getDate();
+        const monthName = months[now.getMonth()];
+        const year = now.getFullYear();
+
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+
+        clockElem.textContent = `${dayName}, ${date} ${monthName} ${year} • ${hours}:${minutes}:${seconds} WIB`;
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+}
 
 // FORM AUTHENTICATION
 function toggleAuthMode(mode) {
@@ -116,7 +145,6 @@ async function handleRegister(e) {
         if (authScreen) authScreen.classList.add('hidden');
         await fetchAppDataFromSupabase();
 
-        // Buat profil default untuk user baru
         await saveProfileDataDirect(fullName, '8829-1029-' + Math.floor(1000 + Math.random() * 9000), '123456', '');
         appendAndSaveBotMessage(`Selamat datang <b>${fullName}</b>! 👋 Akun Anda berhasil dibuat.`);
     } catch (err) {
