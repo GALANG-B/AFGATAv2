@@ -158,7 +158,7 @@
         </main>
     </div>
 
-    <!-- Modal Custom Profil & Upload Foto dari Perangkat -->
+    <!-- Modal Custom Profil & Upload Foto -->
     <div class="modal-overlay" id="profileModal">
         <div class="modal-card profile-card">
             <div class="profile-header-bg">
@@ -201,7 +201,7 @@
         </div>
     </div>
 
-    <!-- PIN Verification Modal -->
+    <!-- PIN Verification Modal (Ada Pilihan Set Tanggal Transaksi) -->
     <div class="modal-overlay" id="pinModal">
         <div class="modal-card">
             <div class="modal-header">
@@ -209,6 +209,15 @@
                 <h3>Konfirmasi Transaksi</h3>
                 <p id="modalTxDetail">Verifikasi PIN keamanan Anda untuk melanjutkan.</p>
             </div>
+
+            <!-- Input Tanggal & Waktu Transaksi -->
+            <div class="form-group" style="margin-top: 0.8rem; text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-calendar-days"></i> Tanggal Transaksi:
+                </label>
+                <input type="datetime-local" id="txCustomDate" class="date-picker-input">
+            </div>
+
             <div class="pin-inputs">
                 <input type="password" maxlength="1" class="pin-digit" autofocus>
                 <input type="password" maxlength="1" class="pin-digit">
