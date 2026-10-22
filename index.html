@@ -62,7 +62,7 @@
         </div>
     </div>
 
-    <!-- CONTAINER UTAMA APLIKASI (Hidden Sampai Login) -->
+    <!-- CONTAINER UTAMA APLIKASI -->
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
@@ -206,27 +206,27 @@
         </main>
     </div>
 
-    <!-- Modal Custom Profil & Upload Foto -->
+    <!-- Modal Custom Profil & Pengaturan Akun -->
     <div class="modal-overlay" id="profileModal">
-        <div class="modal-card profile-card">
+        <div class="modal-card profile-card" style="max-width: 440px !important;">
             <div class="profile-header-bg">
                 <button class="icon-btn close-modal-btn" onclick="closeProfileModal()"><i class="fa-solid fa-xmark"></i></button>
                 <div class="profile-avatar-large" id="modalAvatarPreviewBox">
                     <i class="fa-solid fa-user" id="modalAvatarIcon"></i>
                 </div>
             </div>
-            <div class="profile-body">
-                <h3>Custom Profil & Foto</h3>
-                <p class="profile-subtitle">Upload foto dari galeri & atur identitas Anda</p>
+            <div class="profile-body" style="padding-top: 2.2rem;">
+                <h3>Pengaturan Profil & Akun</h3>
+                <p class="profile-subtitle">Atur identitas e-wallet & keamanan login Anda</p>
                 
                 <form id="profileForm" onsubmit="saveProfileData(event)" class="profile-form">
                     <div class="form-group">
-                        <label><i class="fa-solid fa-camera"></i> Pilih Foto dari Perangkat</label>
+                        <label><i class="fa-solid fa-camera"></i> Foto Profil dari Galeri</label>
                         <input type="file" id="inputFileUpload" accept="image/*" class="file-input-custom">
                     </div>
 
                     <div class="form-group">
-                        <label><i class="fa-solid fa-user"></i> Nama Pemilik Akun</label>
+                        <label><i class="fa-solid fa-id-card"></i> Nama Pemilik Akun</label>
                         <input type="text" id="inputProfileName" placeholder="Masukkan nama Anda" required>
                     </div>
 
@@ -236,15 +236,33 @@
                     </div>
 
                     <div class="form-group">
-                        <label><i class="fa-solid fa-lock"></i> PIN Keamanan (6 Digit)</label>
+                        <label><i class="fa-solid fa-shield-halved"></i> PIN Transaksi (6 Digit)</label>
                         <input type="password" id="inputProfilePin" maxlength="6" placeholder="******" required>
                     </div>
 
-                    <div class="modal-actions" style="margin-top: 1.2rem;">
+                    <hr style="border: none; border-top: 1px solid var(--border-color); margin: 0.5rem 0;">
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-user-gear"></i> Username Login</label>
+                        <input type="text" id="inputProfileUsername" placeholder="Username baru" required autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-key"></i> Password Login Baru (Opsional)</label>
+                        <input type="password" id="inputProfilePassword" placeholder="Biarkan kosong jika tidak diubah">
+                    </div>
+
+                    <div class="modal-actions" style="margin-top: 1rem;">
                         <button type="button" class="btn btn-secondary" onclick="closeProfileModal()">Batal</button>
-                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Simpan Profil</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
                     </div>
                 </form>
+
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed rgba(239, 68, 68, 0.3);">
+                    <button type="button" class="btn" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-red); width: 100%; font-size: 0.82rem;" onclick="handleDeleteAccount()">
+                        <i class="fa-solid fa-user-slash"></i> Hapus Akun & Seluruh Data Permanen
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -258,7 +276,6 @@
                 <p id="modalTxDetail">Verifikasi PIN keamanan Anda untuk melanjutkan.</p>
             </div>
 
-            <!-- Input Tanggal & Waktu Transaksi -->
             <div class="form-group" style="margin-top: 0.8rem; text-align: left;">
                 <label style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
                     <i class="fa-solid fa-calendar-days"></i> Tanggal Transaksi:
