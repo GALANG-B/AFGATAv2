@@ -25,6 +25,7 @@ const pinModal = document.getElementById('pinModal');
 const modalTxDetail = document.getElementById('modalTxDetail');
 const dashboardModal = document.getElementById('dashboardModal');
 const profileModal = document.getElementById('profileModal');
+const txCustomDate = document.getElementById('txCustomDate');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -57,7 +58,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// FUNGSI KOMPRESI FOTO (Mencegah Error Kuota Supabase)
+// Helper Formatter Tanggal Cantik (Contoh: "22 Okt 2026, 10:15")
+function formatFormattedDate(dateObj = new Date()) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const day = dateObj.getDate();
+    const month = months[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const mins = dateObj.getMinutes().toString().padStart(2, '0');
+    return `${day} ${month} ${year}, ${hours}:${mins}`;
+}
+
+// Convert Date ke format string untuk input datetime-local
+function toDatetimeLocalString(dateObj = new Date()) {
+    const year = dateObj.getFullYear();
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const mins = dateObj.getMinutes().toString().padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${mins}`;
+}
+
+// FUNGSI KOMPRESI FOTO
 function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -138,7 +160,6 @@ function updateProfileUI() {
     document.getElementById('inputProfileVA').value = state.userVa;
     document.getElementById('inputProfilePin').value = state.userPin;
 
-    // Tampilkan Foto di Widget Kiri Atas
     const topAvatarBox = document.getElementById('topProfileAvatarBox');
     if (state.avatarUrl) {
         topAvatarBox.innerHTML = `<img src="${state.avatarUrl}" alt="Avatar">`;
@@ -146,7 +167,6 @@ function updateProfileUI() {
         topAvatarBox.innerHTML = `<i class="fa-solid fa-user"></i>`;
     }
 
-    // Tampilkan Foto di Modal Preview
     const modalAvatarBox = document.getElementById('modalAvatarPreviewBox');
     if (state.avatarUrl) {
         modalAvatarBox.innerHTML = `<img src="${state.avatarUrl}" alt="Avatar Large">`;
@@ -248,7 +268,7 @@ function formatRupiah(amount) {
     return 'Rp ' + amount.toLocaleString('id-ID');
 }
 
-// Update UI Sidebar Status
+// Update UI Sidebar Status (Menampilkan Tanggal Transaksi)
 function updateUI() {
     balanceDisplay.textContent = formatRupiah(state.balance);
     txCount.textContent = state.transactions.length;
@@ -275,7 +295,7 @@ function updateUI() {
                 </div>
                 <div>
                     <strong style="display:block; font-size: 0.8rem;">${tx.title}</strong>
-                    <small style="color: var(--text-muted); font-size: 0.68rem;">${tx.date}</small>
+                    <small style="color: var(--text-muted); font-size: 0.68rem;"><i class="fa-regular fa-clock"></i> ${tx.date}</small>
                 </div>
             </div>
             <div class="tx-amount ${tx.is_plus ? 'plus' : 'minus'}">
@@ -497,6 +517,12 @@ function setupPinInputs() {
 
 function openPinModal() {
     pinModal.classList.add('active');
+    
+    // Set default input tanggal dengan waktu saat ini
+    if (txCustomDate) {
+        txCustomDate.value = toDatetimeLocalString(new Date());
+    }
+
     const inputs = document.querySelectorAll('.pin-digit');
     inputs.forEach(i => i.value = '');
     setTimeout(() => inputs[0].focus(), 100);
@@ -525,13 +551,19 @@ function submitPin() {
     }
 }
 
-// Eksekusi & Simpan Permanen ke Supabase Cloud
+// Eksekusi & Simpan Transaksi Lengkap dengan Tanggal
 async function executePendingTransaction() {
     const tx = state.pendingTransaction;
     if (!tx) return;
 
     let newBalance = tx.is_plus ? state.balance + tx.amount : state.balance - tx.amount;
-    const nowStr = 'Baru saja';
+    
+    // Ambil tanggal dari input modal PIN, jika kosong gunakan tanggal saat ini
+    let finalDateStr = formatFormattedDate();
+    if (txCustomDate && txCustomDate.value) {
+        const selectedDate = new Date(txCustomDate.value);
+        finalDateStr = formatFormattedDate(selectedDate);
+    }
 
     try {
         let { data, error: errTx } = await supabaseClient
@@ -540,7 +572,7 @@ async function executePendingTransaction() {
                 type: tx.type,
                 title: tx.title,
                 amount: tx.amount,
-                date: nowStr,
+                date: finalDateStr,
                 is_plus: tx.is_plus
             }])
             .select();
@@ -567,6 +599,7 @@ async function executePendingTransaction() {
             <div class="bot-card-res">
                 • Transaksi: <b>${tx.title}</b><br>
                 • Nominal: <b>${formatRupiah(tx.amount)}</b><br>
+                • Tanggal: <b>${finalDateStr}</b><br>
                 • Sisa Saldo: <b>${formatRupiah(state.balance)}</b>
             </div>
         `);
@@ -610,7 +643,7 @@ function openDashboard() {
                 </div>
                 <div>
                     <strong style="display:block; font-size: 0.8rem;">${tx.title}</strong>
-                    <small style="color: var(--text-muted); font-size: 0.68rem;">${tx.date}</small>
+                    <small style="color: var(--text-muted); font-size: 0.68rem;"><i class="fa-regular fa-clock"></i> ${tx.date}</small>
                 </div>
             </div>
             <div class="tx-amount ${tx.is_plus ? 'plus' : 'minus'}">
