@@ -5,6 +5,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 // State Aplikasi
 let state = {
+    currentUser: null,
     balance: 0,
     userName: 'Galang',
     userVa: '•••• 8829',
@@ -26,13 +27,21 @@ const modalTxDetail = document.getElementById('modalTxDetail');
 const dashboardModal = document.getElementById('dashboardModal');
 const profileModal = document.getElementById('profileModal');
 const txCustomDate = document.getElementById('txCustomDate');
+const authScreen = document.getElementById('authScreen');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
-    await fetchAppDataFromSupabase();
+    // Cek Session LocalStorage
+    const savedUser = localStorage.getItem('dompetai_user');
+    if (savedUser) {
+        state.currentUser = JSON.parse(savedUser);
+        authScreen.classList.add('hidden');
+        await fetchAppDataFromSupabase();
+    }
+
     setupPinInputs();
 
-    // Otomatis Kompres Foto saat dipilih dari Penyimpanan Internal
+    // Otomatis Kompres Foto saat dipilih
     const fileInput = document.getElementById('inputFileUpload');
     if (fileInput) {
         fileInput.addEventListener('change', function(e) {
@@ -46,8 +55,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    appendBotMessage(`Halo <b>${state.userName}</b>! 👋 Saya <b>DompetAI Assistant</b> yang terhubung langsung ke database <b>Supabase Cloud</b>.<br>Ada yang bisa saya bantu hari ini?`);
-
     // Theme Switcher
     themeToggle.addEventListener('click', () => {
         const html = document.documentElement;
@@ -58,7 +65,111 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Helper Formatter Tanggal Cantik (Contoh: "22 Okt 2026, 10:15")
+// SWITCH FORM LOGIN & REGISTER
+function toggleAuthMode(mode) {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    if (mode === 'register') {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+    } else {
+        registerForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+    }
+}
+
+// LOGIKA REGISTER
+async function handleRegister(e) {
+    e.preventDefault();
+    const fullName = document.getElementById('regFullName').value.trim();
+    const username = document.getElementById('regUsername').value.trim().toLowerCase();
+    const password = document.getElementById('regPassword').value.trim();
+
+    if (!fullName || !username || !password) return;
+
+    try {
+        // 1. Cek apakah username sudah ada
+        let { data: existingUser } = await supabaseClient
+            .from('wallet_users')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (existingUser) {
+            alert('Username sudah terpakai, gunakan username lain!');
+            return;
+        }
+
+        // 2. Buat akun di wallet_users
+        let { data: newUser, error: errUser } = await supabaseClient
+            .from('wallet_users')
+            .insert([{ username, password }])
+            .select()
+            .single();
+
+        if (errUser) throw errUser;
+
+        // 3. Auto Login
+        state.currentUser = newUser;
+        localStorage.setItem('dompetai_user', JSON.stringify(newUser));
+
+        // 4. Update Profile bawaan
+        await supabaseClient.from('wallet_profile').update({
+            user_name: fullName,
+            user_id: newUser.id
+        }).eq('id', 1);
+
+        authScreen.classList.add('hidden');
+        await fetchAppDataFromSupabase();
+
+        appendBotMessage(`Selamat datang <b>${fullName}</b>! 👋 Akun Anda berhasil dibuat dan terhubung ke Supabase Cloud.`);
+    } catch (err) {
+        alert('Gagal pendaftaran: ' + err.message);
+    }
+}
+
+// LOGIKA LOGIN
+async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value.trim();
+
+    try {
+        let { data: user, error } = await supabaseClient
+            .from('wallet_users')
+            .select('*')
+            .eq('username', username)
+            .eq('password', password)
+            .single();
+
+        if (error || !user) {
+            alert('Username atau Password salah!');
+            return;
+        }
+
+        state.currentUser = user;
+        localStorage.setItem('dompetai_user', JSON.stringify(user));
+
+        authScreen.classList.add('hidden');
+        chatMessages.innerHTML = '';
+        await fetchAppDataFromSupabase();
+
+        appendBotMessage(`Selamat datang kembali, <b>${state.userName}</b>! 👋 Ada yang bisa saya bantu?`);
+    } catch (err) {
+        alert('Gagal login: ' + err.message);
+    }
+}
+
+// LOGOUT
+function handleLogout() {
+    if (confirm('Apakah Anda yakin ingin keluar?')) {
+        localStorage.removeItem('dompetai_user');
+        state.currentUser = null;
+        location.reload();
+    }
+}
+
+// FORMAT TANGGAL CANTIK
 function formatFormattedDate(dateObj = new Date()) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     const day = dateObj.getDate();
@@ -69,7 +180,6 @@ function formatFormattedDate(dateObj = new Date()) {
     return `${day} ${month} ${year}, ${hours}:${mins}`;
 }
 
-// Convert Date ke format string untuk input datetime-local
 function toDatetimeLocalString(dateObj = new Date()) {
     const year = dateObj.getFullYear();
     const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
@@ -79,7 +189,7 @@ function toDatetimeLocalString(dateObj = new Date()) {
     return `${year}-${month}-${day}T${hours}:${mins}`;
 }
 
-// FUNGSI KOMPRESI FOTO
+// KOMPRESI GAMBAR
 function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -115,10 +225,10 @@ function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     reader.readAsDataURL(file);
 }
 
-// 1. Ambil Data dari Supabase
+// AMBIL DATA DARI SUPABASE
 async function fetchAppDataFromSupabase() {
     try {
-        let { data: profile, error: profError } = await supabaseClient
+        let { data: profile } = await supabaseClient
             .from('wallet_profile')
             .select('*')
             .eq('id', 1)
@@ -135,7 +245,7 @@ async function fetchAppDataFromSupabase() {
             updateProfileUI();
         }
 
-        let { data: txs, error: txError } = await supabaseClient
+        let { data: txs } = await supabaseClient
             .from('transactions')
             .select('*')
             .order('id', { ascending: true });
@@ -150,7 +260,6 @@ async function fetchAppDataFromSupabase() {
     }
 }
 
-// Update UI Tampilan Profil & Foto
 function updateProfileUI() {
     document.getElementById('userName').textContent = state.userName;
     document.getElementById('sidebarUserName').textContent = state.userName;
@@ -175,7 +284,6 @@ function updateProfileUI() {
     }
 }
 
-// Simpan Custom Profil & Foto ke Supabase
 async function saveProfileData(e) {
     e.preventDefault();
 
@@ -201,7 +309,7 @@ async function saveProfileData(e) {
             .eq('id', 1);
 
         if (error) {
-            alert("Gagal menyimpan profil ke Supabase: " + error.message);
+            alert("Gagal menyimpan profil: " + error.message);
             return;
         }
 
@@ -219,7 +327,6 @@ async function saveProfileData(e) {
     }
 }
 
-// Modal Profil Engine
 function openProfileModal() {
     state.tempNewAvatar = state.avatarUrl;
     const fileInp = document.getElementById('inputFileUpload');
@@ -232,7 +339,6 @@ function closeProfileModal() {
     profileModal.classList.remove('active');
 }
 
-// 2. Fungsi Hapus Semua Data
 async function clearAllData() {
     if (!confirm("⚠️ Apakah Anda yakin ingin MENGHAPUS SELURUH DATA transaksi dan mereset saldo ke 0 di Supabase?")) return;
 
@@ -263,12 +369,10 @@ async function clearAllData() {
     }
 }
 
-// Format Currency
 function formatRupiah(amount) {
     return 'Rp ' + amount.toLocaleString('id-ID');
 }
 
-// Update UI Sidebar Status (Menampilkan Tanggal Transaksi)
 function updateUI() {
     balanceDisplay.textContent = formatRupiah(state.balance);
     txCount.textContent = state.transactions.length;
@@ -306,7 +410,6 @@ function updateUI() {
     });
 }
 
-// Handle User Input Submission
 function handleFormSubmit(e) {
     e.preventDefault();
     const text = userInput.value.trim();
@@ -323,7 +426,6 @@ function handleFormSubmit(e) {
     }, 600);
 }
 
-// Helper Quick Triggers
 function quickFillInput(text) {
     userInput.value = text;
     userInput.focus();
@@ -334,7 +436,6 @@ function quickSendMessage(text) {
     handleFormSubmit(new Event('submit'));
 }
 
-// Render Messages
 function appendUserMessage(text) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message user';
@@ -401,7 +502,6 @@ function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-// Extract Angka & Singkatan Nominal
 function parseNominal(text) {
     let matchK = text.match(/(\d+[\d\.]*)\s*(k|rb|ribu)/i);
     if (matchK) {
@@ -419,12 +519,10 @@ function parseNominal(text) {
     return null;
 }
 
-// Flexible Intent Engine
 function processBotResponse(input) {
     const lower = input.toLowerCase();
     const amount = parseNominal(lower);
 
-    // 1. Dashboard & Profil
     if (/profil|profile|akun|edit/i.test(lower)) {
         openProfileModal();
         appendBotMessage(`👤 Membuka <b>Halaman Custom Profil Pemilik E-Wallet</b> Anda.`);
@@ -437,13 +535,11 @@ function processBotResponse(input) {
         return;
     }
 
-    // 2. Cek Saldo
     if (/saldo|uang|sisa|cek|kantong|dompet/.test(lower) && !amount) {
         appendBotMessage(`Total saldo aktif Anda saat ini adalah <b>${formatRupiah(state.balance)}</b>.`);
         return;
     }
 
-    // 3. Pemasukan / Top Up
     if (/top\s*up|isi|tambah|dapet|dapat|terima|dikasih|gajian|masuk|setor/.test(lower)) {
         if (!amount) {
             appendBotMessage(`Sebutkan nominal pemasukannya ya. Contoh: <i>"Gajian 500k"</i>`);
@@ -462,7 +558,6 @@ function processBotResponse(input) {
         return;
     }
 
-    // 4. Pengeluaran / Utang / Beli
     if (/ngutang|ngutangi|piutang|pinjam|pinjem|transfer|kirim|bayar|beli|jajan|makan|minum|kopi|soto|bakso|pulsa|listrik|kasih/.test(lower) || amount) {
         if (!amount) {
             appendBotMessage(`Berapa nominalnya? Contoh: <i>"Ngutangi Dava 5000"</i>`);
@@ -486,7 +581,6 @@ function processBotResponse(input) {
         return;
     }
 
-    // 5. Fallback Response
     appendBotMessage(`
         Saya kurang paham perintah itu.<br><br>
         <b>Coba ketik bahasa santai seperti:</b><br>
@@ -497,7 +591,6 @@ function processBotResponse(input) {
     `);
 }
 
-// PIN Modal Engine
 function setupPinInputs() {
     const inputs = document.querySelectorAll('.pin-digit');
     inputs.forEach((input, index) => {
@@ -517,12 +610,9 @@ function setupPinInputs() {
 
 function openPinModal() {
     pinModal.classList.add('active');
-    
-    // Set default input tanggal dengan waktu saat ini
     if (txCustomDate) {
         txCustomDate.value = toDatetimeLocalString(new Date());
     }
-
     const inputs = document.querySelectorAll('.pin-digit');
     inputs.forEach(i => i.value = '');
     setTimeout(() => inputs[0].focus(), 100);
@@ -551,14 +641,12 @@ function submitPin() {
     }
 }
 
-// Eksekusi & Simpan Transaksi Lengkap dengan Tanggal
 async function executePendingTransaction() {
     const tx = state.pendingTransaction;
     if (!tx) return;
 
     let newBalance = tx.is_plus ? state.balance + tx.amount : state.balance - tx.amount;
     
-    // Ambil tanggal dari input modal PIN, jika kosong gunakan tanggal saat ini
     let finalDateStr = formatFormattedDate();
     if (txCustomDate && txCustomDate.value) {
         const selectedDate = new Date(txCustomDate.value);
@@ -610,7 +698,6 @@ async function executePendingTransaction() {
     state.pendingTransaction = null;
 }
 
-// Dashboard Modal Engine
 function openDashboard() {
     const totalIn = state.transactions.filter(t => t.is_plus).reduce((acc, curr) => acc + curr.amount, 0);
     const totalOut = state.transactions.filter(t => !t.is_plus).reduce((acc, curr) => acc + curr.amount, 0);
