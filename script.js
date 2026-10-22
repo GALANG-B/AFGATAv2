@@ -1,6 +1,6 @@
 // Konfigurasi Koneksi Supabase
 const SUPABASE_URL = 'https://pmtjequlrdxpjaeeswhd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MzE1MTYsImV4cCI6MjEwODEwNzUxNn0.Xm9hlw-iWtvho3uHavQ4A3I53hivewoYHaPJB6oYEws';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdGplcXVscmR4cGphZWVzd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MzE1MTYsImV4cCI6MjEwODEwNzUxNn0.Xm9hlw-iWtvho3uHavQ4A3I53hivewoYHaPJB6oYEws';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // State Aplikasi
@@ -116,6 +116,7 @@ async function handleRegister(e) {
         if (authScreen) authScreen.classList.add('hidden');
         await fetchAppDataFromSupabase();
 
+        // Buat profil default untuk user baru
         await saveProfileDataDirect(fullName, '8829-1029-' + Math.floor(1000 + Math.random() * 9000), '123456', '');
         appendAndSaveBotMessage(`Selamat datang <b>${fullName}</b>! 👋 Akun Anda berhasil dibuat.`);
     } catch (err) {
@@ -223,7 +224,7 @@ function compressAndResizeImage(file, maxWidth, maxHeight, quality, callback) {
     reader.readAsDataURL(file);
 }
 
-// FETCH DATA DARI SUPABASE
+// FETCH DATA DARI SUPABASE BERDASARKAN USER_ID
 async function fetchAppDataFromSupabase() {
     if (!state.currentUser) return;
     const currentUserId = state.currentUser.id;
@@ -236,7 +237,7 @@ async function fetchAppDataFromSupabase() {
             .maybeSingle();
 
         if (profile) {
-            state.balance = parseFloat(profile.balance);
+            state.balance = parseFloat(profile.balance || 0);
             state.userName = profile.user_name || state.currentUser.username;
             state.userPin = profile.user_pin || '123456';
             state.userVa = profile.virtual_account || '•••• 8829';
@@ -326,7 +327,7 @@ function updateProfileUI() {
     }
 }
 
-// SIMPAN EDIT PROFIL, USERNAME & PASSWORD (DIPERBAIKI)
+// SIMPAN EDIT PROFIL, USERNAME & PASSWORD PERMANEN
 async function saveProfileData(e) {
     e.preventDefault();
     const newName = document.getElementById('inputProfileName').value.trim();
@@ -369,7 +370,7 @@ async function saveProfileData(e) {
 
         if (isSuccess) {
             closeProfileModal();
-            appendAndSaveBotMessage(`👤 <b>Profil, Username & Keamanan Akun Berhasil Diperbarui!</b>`);
+            appendAndSaveBotMessage(`👤 <b>Profil, Username & Keamanan Akun Berhasil Diperbarui Permanen!</b>`);
         }
     } catch (err) {
         alert("Gagal memperbarui profil/akun: " + err.message);
